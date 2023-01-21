@@ -144,9 +144,9 @@ extension AlertState where Action == StandupsListModel.AlertAction {
 
 struct StandupsList: View {
   @ObservedObject var model: StandupsListModel
-
+  @State var path: IdentifiedNavigationPath = .init()
   var body: some View {
-    NavigationStack {
+    NavigationStack(path: $path) {
       List {
         ForEach(self.model.standups) { standup in
           Button {
@@ -156,6 +156,9 @@ struct StandupsList: View {
           }
           .listRowBackground(standup.theme.mainColor)
         }
+      }
+      .navigationDestination(for: NavigationDestination.self) {
+        $0.content
       }
       .toolbar {
         Button {
@@ -198,6 +201,10 @@ struct StandupsList: View {
       ) {
         self.model.alertButtonTapped($0)
       }
+    }
+    .environment(\.identifiedNavigationPath, $path)
+    .onChange(of: path) { newValue in
+      dump(newValue)
     }
   }
 }

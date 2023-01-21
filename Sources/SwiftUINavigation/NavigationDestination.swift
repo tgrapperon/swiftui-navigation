@@ -40,12 +40,12 @@
     ///   - destination: A closure returning the content of the destination.
     public func navigationDestination<Value, Destination: View>(
       unwrapping value: Binding<Value?>,
-      @ViewBuilder destination: (Binding<Value>) -> Destination
+      @ViewBuilder destination: @escaping (Binding<Value>) -> Destination
     ) -> some View {
       self.modifier(
         _NavigationDestination(
           isPresented: value.isPresent(),
-          destination: Binding(unwrapping: value).map(destination)
+          destination: { Binding(unwrapping: value).map(destination) }
         )
       )
     }
@@ -70,25 +70,113 @@
     public func navigationDestination<Enum, Case, Destination: View>(
       unwrapping enum: Binding<Enum?>,
       case casePath: CasePath<Enum, Case>,
-      @ViewBuilder destination: (Binding<Case>) -> Destination
+      @ViewBuilder destination: @escaping (Binding<Case>) -> Destination
     ) -> some View {
       self.navigationDestination(unwrapping: `enum`.case(casePath), destination: destination)
     }
   }
 
+final class IsPresentedState: ObservableObject {
+  @Published var wrappedValue: Bool = false
+  deinit {
+    print("Bye")
+  }
+}
   // NB: This view modifier works around a bug in SwiftUI's built-in modifier:
   // https://gist.github.com/mbrandonw/f8b94957031160336cac6898a919cbb7#file-fb11056434-md
   @available(iOS 16, macOS 13, tvOS 16, watchOS 9, *)
   private struct _NavigationDestination<Destination: View>: ViewModifier {
     @Binding var isPresented: Bool
-    let destination: Destination
-
-    @State private var isPresentedState = false
+    @State var destinationID = UUID()
+    @State var isPresentedState = false
+    @Environment(\.identifiedNavigationPath) var path
+    
+    let destination: () -> Destination
 
     public func body(content: Content) -> some View {
+      /// Is onChange responsible for the issues?
+      /// Is this the same issue caused by the diff of binding behavior
+      /// between oo and functional ones?
       content
-        .navigationDestination(isPresented: self.$isPresentedState) { self.destination }
-        .bind(self.$isPresented, to: self.$isPresentedState)
+      .onAppear {
+        if isPresented {
+          if !path.wrappedValue.contains(where: { $0.id == destinationID }) {
+            path.wrappedValue.append(.init(id: destinationID, content: AnyView(destination())))
+          }
+        }
+      }
+      .onChange(of: isPresented) { isPresented in
+        if isPresented {
+          if !path.wrappedValue.contains(where: { $0.id == destinationID }) {
+            path.wrappedValue.append(.init(id: destinationID, content: AnyView(destination())))
+          }
+        } else {
+          path.wrappedValue.removeAll(where: { $0.id == self.destinationID })
+        }
+      }
+//        .navigationDestination(isPresented: self.$isPresentedState) { self.destination() }
+//        .bind(self.$isPresented, to: self.$isPresentedState)
+   
+    
+
     }
   }
 #endif
+
+protocol NilView {
+  var isNil: Bool { get }
+}
+
+extension Optional: NilView where Wrapped: View {
+  var isNil: Bool { self == nil }
+}
+
+public struct NavigationDestination: Hashable {
+  public let id: UUID
+  public let content: AnyView
+  
+  public static func == (lhs: NavigationDestination, rhs: NavigationDestination) -> Bool {
+    lhs.id == rhs.id
+  }
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(self.id)
+  }
+}
+
+public struct IdentifiedNavigationPath: RandomAccessCollection, MutableCollection, RangeReplaceableCollection, Hashable {
+
+  var destinations: [NavigationDestination] = []
+  public var startIndex: Int { destinations.startIndex }
+  public var endIndex: Int { destinations.endIndex }
+  
+  public subscript(position: Int) -> NavigationDestination {
+    get { self.destinations[position] }
+    set { self.destinations[position] = newValue }
+  }
+  public init() {}
+  public init(destinations: [NavigationDestination] = []) {
+    self.destinations = destinations
+  }
+  public mutating func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C) where C : Collection, NavigationDestination == C.Element {
+    self.destinations.replaceSubrange(subrange, with: newElements)
+  }
+}
+
+extension IdentifiedNavigationPath: EnvironmentKey {
+  public static var defaultValue: Binding<IdentifiedNavigationPath> { .constant(.init(destinations: []))
+  }
+}
+
+extension EnvironmentValues {
+  public var identifiedNavigationPath: Binding<IdentifiedNavigationPath> {
+    get { self[IdentifiedNavigationPath.self] }
+    set { self[IdentifiedNavigationPath.self] = newValue }
+  }
+}
+
+
+//final class IdentifiedNavigationModel: ObservableObject {
+//  @Published var path: IdentifiedNavigationPath = .init(destinations: [])
+//}
+
+
