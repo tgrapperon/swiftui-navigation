@@ -1,6 +1,7 @@
 import SwiftUI
 
 extension Binding {
+  // NOTE: This is fixed in 16.2 at least.
   /// Creates a binding by projecting the base value to an unwrapped value.
   ///
   /// Useful for producing non-optional bindings from optional ones.
