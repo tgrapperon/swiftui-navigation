@@ -26,6 +26,23 @@ class StandupDetailModel: ObservableObject {
     case edit(StandupFormModel)
     case meeting(Meeting)
     case record(RecordMeetingModel)
+    
+    var kp_alert: AlertState<AlertAction>? {
+      get { (/Destination.alert).extract(from: self) }
+      set { newValue.map((/Destination.alert).embed) }
+    }
+    var kp_edit: StandupFormModel? {
+      get { (/Destination.edit).extract(from: self) }
+      set { newValue.map((/Destination.edit).embed) }
+    }
+    var kp_meeting: Meeting? {
+      get { (/Destination.meeting).extract(from: self) }
+      set { newValue.map((/Destination.meeting).embed) }
+    }
+    var kp_record: RecordMeetingModel? {
+      get { (/Destination.record).extract(from: self) }
+      set { newValue.map((/Destination.record).embed) }
+    }
   }
   enum AlertAction {
     case confirmDeletion
@@ -214,26 +231,38 @@ struct StandupDetailView: View {
         self.model.editButtonTapped()
       }
     }
+//    .navigationDestination(unwrapping: self.$model.observer.destination, destination: { $destination in
+//
+//      switch destination {
+//      case let .record(model):
+//        RecordMeetingView(model: model)
+//      case let .meeting(meeting):
+//        MeetingView(meeting: meeting, standup: .designMock)
+//      default:
+//        fatalError()
+//      }
+//    })
+    
     .navigationDestination(
-      unwrapping: self.$model.destination,
-      case: /StandupDetailModel.Destination.meeting
-    ) { $meeting in
-      MeetingView(meeting: meeting, standup: self.model.standup)
-    }
-    .navigationDestination(
-      unwrapping: self.$model.destination,
+      unwrapping: self.$model.observer.destination,
       case: /StandupDetailModel.Destination.record
     ) { $model in
       RecordMeetingView(model: model)
     }
+    .navigationDestination(
+      unwrapping: self.$model.observer.destination,
+      case: /StandupDetailModel.Destination.meeting
+    ) { $meeting in
+      MeetingView(meeting: meeting, standup: self.model.standup)
+    }
     .alert(
-      unwrapping: self.$model.destination,
+      unwrapping: self.$model.observer.destination,
       case: /StandupDetailModel.Destination.alert
     ) { action in
       await self.model.alertButtonTapped(action)
     }
     .sheet(
-      unwrapping: self.$model.destination,
+      unwrapping: self.$model.observer.destination,
       case: /StandupDetailModel.Destination.edit
     ) { $editModel in
       NavigationStack {

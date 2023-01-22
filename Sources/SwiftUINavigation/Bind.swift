@@ -40,18 +40,52 @@ where ModelValue.Value == ViewValue.Value, ModelValue.Value: Equatable {
         guard self.viewValue.wrappedValue != self.modelValue.wrappedValue else { return }
         self.viewValue.wrappedValue = self.modelValue.wrappedValue
       }
-      .onChange(of: self.modelValue.wrappedValue) {
-        guard self.viewValue.wrappedValue != $0
-        else { return }
-        self.viewValue.wrappedValue = $0
-      }
+
       .onChange(of: self.viewValue.wrappedValue) {
         guard self.modelValue.wrappedValue != $0
         else { return }
         self.modelValue.wrappedValue = $0
       }
+      .onChange(of: self.modelValue.wrappedValue) {
+        guard self.viewValue.wrappedValue != $0
+        else { return }
+        self.viewValue.wrappedValue = $0
+      }
+
   }
 }
+
+@dynamicMemberLookup
+public struct ObservableObserver<Object: ObservableObject> {
+  let object: Object
+  public subscript<Value>(dynamicMember keyPath: WritableKeyPath<Object, Value>) -> Value {
+    get {
+      print("🔵 Getting \(keyPath) in \(object)")
+      return object[keyPath: keyPath]
+    }
+    nonmutating set {
+      print("🟣 Setting \(keyPath) in \(object)")
+      var object = object // ?
+      object[keyPath: keyPath] = newValue
+    }
+  }
+}
+
+extension ObservableObject {
+  public var observer: ObservableObserver<Self> {
+    get {
+      .init(object: self)
+    }
+    set {}
+  }
+}
+
+
+
+
+
+
+
 
 public protocol _Bindable {
   associatedtype Value

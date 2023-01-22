@@ -44,8 +44,8 @@
     ) -> some View {
       self.modifier(
         _NavigationDestination(
-          isPresented: value.isPresent(),
-          destination: { Binding(unwrapping: value).map(destination) }
+          isPresented: value.isPresented,
+          destination: { Binding(value).map(destination) }
         )
       )
     }
@@ -77,7 +77,13 @@
   }
 
 final class IsPresentedState: ObservableObject {
-  @Published var wrappedValue: Bool = false
+  @Published var value: Bool = false {
+    willSet {
+      modelBinding?.wrappedValue = newValue
+    }
+  }
+  var modelBinding: Binding<Bool>?
+  
   deinit {
     print("Bye")
   }
@@ -88,7 +94,8 @@ final class IsPresentedState: ObservableObject {
   private struct _NavigationDestination<Destination: View>: ViewModifier {
     @Binding var isPresented: Bool
     @State var destinationID = UUID()
-    @State var isPresentedState = false
+//    @State var isPresentedState = false
+    @StateObject var isPresentedState: IsPresentedState = .init()
     @Environment(\.identifiedNavigationPath) var path
     
     let destination: () -> Destination
@@ -97,26 +104,36 @@ final class IsPresentedState: ObservableObject {
       /// Is onChange responsible for the issues?
       /// Is this the same issue caused by the diff of binding behavior
       /// between oo and functional ones?
+      
+//      let d = self.$isPresentedState.observer.wrappedValue
       content
-      .onAppear {
-        if isPresented {
-          if !path.wrappedValue.contains(where: { $0.id == destinationID }) {
-            path.wrappedValue.append(.init(id: destinationID, content: AnyView(destination())))
+//      .onAppear {
+//        if isPresented {
+//          if !path.wrappedValue.contains(where: { $0.id == destinationID }) {
+//            path.wrappedValue.append(.init(id: destinationID, content: AnyView(destination())))
+//          }
+//        }
+//      }
+//      .onChange(of: isPresented) { isPresented in
+//        if isPresented {
+//          if !path.wrappedValue.contains(where: { $0.id == destinationID }) {
+//            path.wrappedValue.append(.init(id: destinationID, content: AnyView(destination())))
+//          }
+//        } else {
+//          path.wrappedValue.removeAll(where: { $0.id == self.destinationID })
+//        }
+//      }
+        .navigationDestination(isPresented: self.$isPresentedState.observer.value) { self.destination() }
+        .onAppear {
+          self.isPresentedState.modelBinding = $isPresented
+        }
+        .onChange(of: isPresented) { newValue in
+          if self.isPresentedState.value != newValue {
+            self.isPresentedState.value = newValue
           }
         }
-      }
-      .onChange(of: isPresented) { isPresented in
-        if isPresented {
-          if !path.wrappedValue.contains(where: { $0.id == destinationID }) {
-            path.wrappedValue.append(.init(id: destinationID, content: AnyView(destination())))
-          }
-        } else {
-          path.wrappedValue.removeAll(where: { $0.id == self.destinationID })
-        }
-      }
-//        .navigationDestination(isPresented: self.$isPresentedState) { self.destination() }
-//        .bind(self.$isPresented, to: self.$isPresentedState)
-   
+//        .bind(self.$isPresented, to: self.$isPresentedState.observer.value)
+
     
 
     }
@@ -129,6 +146,26 @@ protocol NilView {
 
 extension Optional: NilView where Wrapped: View {
   var isNil: Bool { self == nil }
+}
+
+public protocol IsPresentable {
+  var isPresented: Bool { get set }
+}
+
+extension Optional: IsPresentable {
+  public var isPresented: Bool {
+    get { self != nil }
+    set { if !newValue {
+      self = nil
+    }}
+  }
+}
+
+extension Binding: IsPresentable where Value: IsPresentable {
+  public var isPresented: Bool {
+    get { wrappedValue.isPresented }
+    set { wrappedValue.isPresented = newValue }
+  }
 }
 
 public struct NavigationDestination: Hashable {

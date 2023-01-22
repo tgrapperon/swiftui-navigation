@@ -23,6 +23,11 @@ class RecordMeetingModel: ObservableObject {
 
   enum Destination {
     case alert(AlertState<AlertAction>)
+    
+    var kp_alert: AlertState<AlertAction>? {
+      get { (/Destination.alert).extract(from: self) }
+      set { newValue.map((/Destination.alert).embed) }
+    }
   }
 
   enum AlertAction {
@@ -214,7 +219,7 @@ struct RecordMeetingView: View {
     }
     .navigationBarBackButtonHidden(true)
     .alert(
-      unwrapping: self.$model.destination,
+      unwrapping: self.$model.observer.destination,
       case: /RecordMeetingModel.Destination.alert
     ) { action in
       await self.model.alertButtonTapped(action)

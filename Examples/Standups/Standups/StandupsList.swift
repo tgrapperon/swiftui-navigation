@@ -22,6 +22,21 @@ final class StandupsListModel: ObservableObject {
     case add(StandupFormModel)
     case alert(AlertState<AlertAction>)
     case detail(StandupDetailModel)
+    
+    var kp_add: StandupFormModel? {
+      get { (/Destination.add).extract(from: self) }
+      set { newValue.map((/Destination.add).embed) }
+    }
+    
+    var kp_alert: AlertState<AlertAction>? {
+      get { (/Destination.alert).extract(from: self) }
+      set { newValue.map((/Destination.alert).embed) }
+    }
+    
+    var kp_detail: StandupDetailModel? {
+      get { (/Destination.detail).extract(from: self) }
+      set { newValue.map((/Destination.detail).embed) }
+    }
   }
   enum AlertAction {
     case confirmLoadMockData
@@ -169,7 +184,7 @@ struct StandupsList: View {
       }
       .navigationTitle("Daily Standups")
       .sheet(
-        unwrapping: self.$model.destination,
+        unwrapping: self.$model.observer.destination,
         case: /StandupsListModel.Destination.add
       ) { $model in
         NavigationStack {
@@ -190,13 +205,14 @@ struct StandupsList: View {
         }
       }
       .navigationDestination(
-        unwrapping: self.$model.destination,
+        unwrapping: self.$model.observer.destination,
         case: /StandupsListModel.Destination.detail
       ) { $detailModel in
         StandupDetailView(model: detailModel)
       }
+
       .alert(
-        unwrapping: self.$model.destination,
+        unwrapping: self.$model.observer.destination,
         case: /StandupsListModel.Destination.alert
       ) {
         self.model.alertButtonTapped($0)
