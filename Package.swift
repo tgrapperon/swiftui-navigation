@@ -16,8 +16,8 @@ let package = Package(
       targets: ["SwiftUINavigation"]
     ),
     .library(
-      name: "_SwiftUINavigationState",
-      targets: ["_SwiftUINavigationState"]
+      name: "SwiftUINavigationState",
+      targets: ["SwiftUINavigationState"]
     ),
   ],
   dependencies: [
@@ -28,7 +28,7 @@ let package = Package(
   ],
   targets: [
     .target(
-      name: "_SwiftUINavigationState",
+      name: "SwiftUINavigationState",
       dependencies: [
         .product(name: "CustomDump", package: "swift-custom-dump"),
         .product(name: "XCTestDynamicOverlay", package: "xctest-dynamic-overlay"),
@@ -37,7 +37,7 @@ let package = Package(
     .target(
       name: "SwiftUINavigation",
       dependencies: [
-        "_SwiftUINavigationState",
+        "SwiftUINavigationState",
         .product(name: "CasePaths", package: "swift-case-paths"),
       ]
     ),
